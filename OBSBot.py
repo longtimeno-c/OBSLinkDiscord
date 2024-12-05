@@ -9,9 +9,9 @@ channel_id = YOUR_CHANNEL_ID
 obs_host = "localhost"
 obs_port = 4444
 obs_password = "your_obs_password"
-scene_count = 1  # Tracks the number of Phone Cam scenes created
 
 client = discord.Client()
+user_scenes = {}  # Dictionary to keep track of user scenes
 
 def create_obs_connection():
     ws = obsws(obs_host, obs_port, obs_password)
@@ -26,6 +26,11 @@ def scene_exists(ws, scene_name):
             return True
     return False
 
+def delete_scene(ws, scene_name):
+    """ Delete a scene in OBS """
+    if scene_exists(ws, scene_name):
+        ws.call(requests.RemoveScene(scene_name))
+
 @client.event
 async def on_ready():
     print(f'Logged in as {client.user}')
@@ -33,7 +38,6 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    global scene_count  # Use the global scene_count variable
     if message.channel.id != channel_id or message.author == client.user:
         return
 
@@ -41,17 +45,23 @@ async def on_message(message):
     if not urls:
         return
 
-    ws = create_obs_connection()
+    nickname = message.author.nick or message.author.name  # Use nickname if available, otherwise username
+    scene_name = f"{nickname}phonecam"
     
+    ws = create_obs_connection()
+
     try:
+        if scene_name in user_scenes and user_scenes[scene_name] != message.author.id:
+            delete_scene(ws, scene_name)  # Delete old scene if different user
+
+        user_scenes[scene_name] = message.author.id  # Update scene ownership
+
         for url in urls:
             if is_url_active(url):
-                scene_name = f"Phone Cam {scene_count}"
                 if not scene_exists(ws, scene_name):
                     ws.call(requests.CreateScene(scene_name))
                 ws.call(requests.SetSourceSettings("Browser Source", {"url": url, "width": 1920, "height": 1080}, scene_name=scene_name))
                 print(f"Created/Updated scene {scene_name} with URL: {url}")
-                scene_count += 1
                 await asyncio.sleep(20)
                 if scene_exists(ws, scene_name):
                     ws.call(requests.SetCurrentScene(scene_name))
