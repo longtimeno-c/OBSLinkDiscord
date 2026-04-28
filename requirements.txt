@@ -1,0 +1,3 @@
+discord.py>=2.3.2
+obs-websocket-py>=1.0
+requests>=2.31.0
