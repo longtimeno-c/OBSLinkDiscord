@@ -10,7 +10,9 @@ obs_host = "localhost"
 obs_port = 4444
 obs_password = "your_obs_password"
 
-client = discord.Client()
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
 user_scenes = {}  # Dictionary to keep track of user scenes
 
 def create_obs_connection():
