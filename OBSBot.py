@@ -24,14 +24,14 @@ def scene_exists(ws, scene_name):
     """ Check if a scene exists in OBS """
     scenes = ws.call(requests.GetSceneList())
     for scene in scenes.getScenes():
-        if scene['name'] == scene_name:
+        if scene['sceneName'] == scene_name:
             return True
     return False
 
 def delete_scene(ws, scene_name):
     """ Delete a scene in OBS """
     if scene_exists(ws, scene_name):
-        ws.call(requests.RemoveScene(scene_name))
+        ws.call(requests.RemoveScene(sceneName=scene_name))
 
 @client.event
 async def on_ready():
@@ -61,12 +61,23 @@ async def on_message(message):
         for url in urls:
             if is_url_active(url):
                 if not scene_exists(ws, scene_name):
-                    ws.call(requests.CreateScene(scene_name))
-                ws.call(requests.SetSourceSettings("Browser Source", {"url": url, "width": 1920, "height": 1080}, scene_name=scene_name))
+                    ws.call(requests.CreateScene(sceneName=scene_name))
+                input_name = f"{scene_name}_browser"
+                # Remove existing input if present so we can recreate it cleanly
+                try:
+                    ws.call(requests.RemoveInput(inputName=input_name))
+                except Exception:
+                    pass
+                ws.call(requests.CreateInput(
+                    sceneName=scene_name,
+                    inputName=input_name,
+                    inputKind="browser_source",
+                    inputSettings={"url": url, "width": 1920, "height": 1080}
+                ))
                 print(f"Created/Updated scene {scene_name} with URL: {url}")
                 await asyncio.sleep(20)
                 if scene_exists(ws, scene_name):
-                    ws.call(requests.SetCurrentScene(scene_name))
+                    ws.call(requests.SetCurrentProgramScene(sceneName=scene_name))
                 else:
                     print(f"Scene {scene_name} was deleted manually. Cannot switch to it.")
             else:
